@@ -1,0 +1,643 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PRÉVIA v1.6 — Espelho GRU Eleitoral | Konta+</title>
+<meta name="description" content="Ferramenta gratuita para montar e conferir o espelho de preenchimento da GRU Eleitoral no Portal PagTesouro.">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<link rel="canonical" href="https://tiagoadami-code.github.io/kontamais-gru/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:calc(84px + env(safe-area-inset-top,0px))}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+<style>
+/* Layout: duas colunas — formulário de montagem à esquerda, espelho da guia (réplica do PagTesouro) à direita; empilha no celular. */
+:root{
+  --bg:#f4f6fa; --surface:#ffffff; --surface-2:#eaeff6; --fg:#172033; --muted:#5a6578; --line:#cfd7e3;
+  --accent:#0854A5; --accent-fg:#ffffff; --accent-soft:#e1ebf7; --green:#129D55; --yellow:#DDC863;
+  --ok:#129D55; --warn:#8a6a00; --err:#b3261e; --err-soft:#fbe4e2; --warn-soft:#f8f1cf;
+  --seg1:#0854A5; --seg2:#129D55; --seg3:#8a6a00; --seg4:#7a3aa0; --seg5:#b02a5b;
+  --header-h:68px;
+  --sans:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f1622; --surface:#161f2e; --surface-2:#1f2a3b; --fg:#e8edf5; --muted:#99a6ba; --line:#2f3c50;
+  --accent:#6fa8ea; --accent-fg:#0b1627; --accent-soft:#1b2f4d; --green:#4fcf8a; --yellow:#e6d27a;
+  --ok:#4fcf8a; --warn:#e6c35a; --err:#ff7b72; --err-soft:#3a2220; --warn-soft:#3a3320;
+  --seg1:#6fa8ea; --seg2:#4fcf8a; --seg3:#e6c35a; --seg4:#c49bff; --seg5:#ff86b0; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0f1622; --surface:#161f2e; --surface-2:#1f2a3b; --fg:#e8edf5; --muted:#99a6ba; --line:#2f3c50;
+  --accent:#6fa8ea; --accent-fg:#0b1627; --accent-soft:#1b2f4d; --green:#4fcf8a; --yellow:#e6d27a;
+  --ok:#4fcf8a; --warn:#e6c35a; --err:#ff7b72; --err-soft:#3a2220; --warn-soft:#3a3320;
+  --seg1:#6fa8ea; --seg2:#4fcf8a; --seg3:#e6c35a; --seg4:#c49bff; --seg5:#ff86b0; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.45;margin:0;padding:0 0 48px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:20px;padding:20px 16px 0}
+
+/* Cabeçalho do site — mesmo padrão de kontamais.com.br (logo, menu, botão "Acessar comunidade").
+   O logo vai embutido (data:) porque a CSP do plugin do Discourse só aceita imagens do próprio domínio ou data:. */
+.site-header{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 85%,transparent);-webkit-backdrop-filter:saturate(180%) blur(10px);backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--line)}
+.site-nav{max-width:1240px;margin:0 auto;padding:0 16px;height:var(--header-h);display:flex;align-items:center;justify-content:space-between;gap:16px}
+.site-logo{display:flex;align-items:center;text-decoration:none}
+.site-logo img{height:34px;width:auto;display:block}
+.nav-links{display:flex;align-items:center;gap:24px}
+.nav-links a{text-decoration:none;color:var(--muted);font-weight:500;font-size:.95rem}
+.nav-links a:hover,.nav-links a[aria-current]{color:var(--fg)}
+.btn-pill{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:8px 16px;border-radius:999px;font-weight:600;font-size:.9rem;text-decoration:none;white-space:nowrap;border:1px solid transparent;transition:transform .15s ease,background .15s ease}
+.btn-pill:hover{transform:translateY(-1px)}
+.nav-links .btn-pill{background:#0854A5;color:#fff;box-shadow:0 6px 18px color-mix(in srgb,#0854A5 35%,transparent)}
+.nav-links .btn-pill:hover{background:#063f7c;color:#fff}
+@media (max-width:720px){.nav-links a:not(.btn-pill){display:none}}
+@media (max-width:420px){.site-logo img{height:28px}.nav-links .btn-pill{padding:8px 12px;font-size:.85rem;gap:4px}}
+@media (max-width:360px){.hide-xs{display:none}}
+/* Logo é PNG em azul: no tema escuro ganha fundo claro para manter o contraste */
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .site-logo{background:#fff;border-radius:8px;padding:4px 8px}}
+:root[data-theme="dark"] .site-logo{background:#fff;border-radius:8px;padding:4px 8px}
+
+.page-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+footer{border-top:3px solid var(--accent);padding-top:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;font-size:13px;color:var(--muted)}
+footer h4{margin:0 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+footer p{margin:0 0 4px;line-height:1.5}
+footer strong{color:var(--fg)}
+.feedback{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.feedback p{margin:0;color:var(--fg)}
+.btn-wa{background:#129D55;color:#fff;padding:10px 18px;font-size:.95rem;gap:8px}
+.btn-wa:hover{background:#0e7d44}
+.btn-wa svg{width:18px;height:18px;flex:none}
+.badge{display:inline-block;background:var(--yellow);color:#172033;font-weight:600;font-size:11px;padding:2px 8px;border-radius:999px;letter-spacing:.04em}
+h1 small{display:block;font-size:13px;color:var(--muted);font-weight:500;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px}
+.portal-link{font-size:14px;color:var(--accent);font-weight:600;text-decoration:none;border:1px solid var(--accent);padding:8px 14px;border-radius:6px;white-space:nowrap}
+.portal-link:hover{background:var(--accent-soft)}
+.grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:20px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;min-width:0}
+h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 12px;font-weight:600}
+fieldset{border:0;padding:0;margin:0 0 18px;min-width:0}
+legend{font-weight:600;font-size:15px;margin-bottom:8px;padding:0}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.row.two{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:500;min-width:0}
+input,select{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-width:0;width:100%}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+input.mono{font-family:var(--mono);letter-spacing:.04em}
+.hint{font-size:12px;color:var(--muted);margin:4px 0 0;line-height:1.4}
+.hint b{color:var(--fg);font-weight:600}
+button{font:inherit;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:var(--surface-2);color:var(--fg);padding:8px 14px;font-weight:600}
+button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.small{padding:4px 10px;font-size:12px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+
+/* Número de referência montado */
+.ref{background:var(--surface-2);border-radius:8px;padding:12px 14px;margin-top:8px}
+.ref .digits{font-family:var(--mono);font-size:clamp(18px,3.4vw,26px);font-weight:600;letter-spacing:.08em;word-break:break-all;line-height:1.3}
+.ref .legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:12px;color:var(--muted)}
+.s1{color:var(--seg1)}.s2{color:var(--seg2)}.s3{color:var(--seg3)}.s4{color:var(--seg4)}.s5{color:var(--seg5)}
+.ref .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px;background:currentColor}
+
+/* Espelho */
+.espelho{position:sticky;top:calc(var(--header-h) + 16px + env(safe-area-inset-top,0px))}
+.espelho .brand{display:flex;justify-content:space-between;align-items:baseline;gap:8px;border-bottom:2px solid var(--accent);padding-bottom:8px;margin-bottom:12px}
+.espelho .brand strong{font-size:17px}
+.espelho .brand span{font-size:12px;color:var(--muted)}
+.field{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.field:last-child{border-bottom:0}
+.field .k{font-size:12px;color:var(--muted);letter-spacing:.02em}
+.field .k em{font-style:normal;color:var(--err);font-size:11px}
+.field .v{font-weight:600;word-break:break-word;font-variant-numeric:tabular-nums}
+.field .v.mono{font-family:var(--mono);letter-spacing:.06em}
+.field .v.empty{color:var(--muted);font-weight:400;font-style:italic}
+.field .k,.field .v{min-width:0}
+.field .copy{padding:5px 10px;font-size:12px;white-space:nowrap}
+.field .copy.done{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.status{margin:0 0 12px;padding:9px 11px;border-radius:6px;font-weight:700;font-size:13px}.status.err{background:var(--err-soft);color:var(--err)}.status.ok{background:var(--accent-soft);color:var(--ok)}
+.group{margin-top:14px}
+.group h3{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:0 0 2px;font-weight:600}
+.total{display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;padding-top:10px;border-top:2px solid var(--line)}
+.total .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+
+/* Validações */
+.checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.checks li{display:flex;gap:8px;align-items:flex-start;font-size:13px;padding:6px 10px;border-radius:6px;background:var(--surface-2)}
+.checks li.err{background:var(--err-soft);color:var(--err)}
+.checks li.warn{background:var(--warn-soft);color:var(--warn)}
+.checks li.ok{color:var(--ok)}
+.checks li::before{content:"✓";font-weight:700;flex:none}
+.checks li.err::before{content:"✕"}
+.checks li.warn::before{content:"!"}
+
+/* Histórico */
+.hist{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.hist .item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px}
+.hist .item .n{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist .item .m{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.hist .empty{font-size:13px;color:var(--muted);font-style:italic}
+textarea{font:13px/1.5 var(--mono);width:100%;min-height:150px;border:1px solid var(--line);border-radius:6px;background:var(--surface-2);color:var(--fg);padding:10px;resize:vertical}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:6px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+details{border:1px solid var(--line);border-radius:8px;padding:10px 14px}
+summary{cursor:pointer;font-weight:600;font-size:14px}
+details table{border-collapse:collapse;width:100%;font-size:13px;margin-top:10px}
+details th,details td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+details th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.tbl{overflow-x:auto}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.preview-warning{background:#7f1d1d;color:#fff;padding:12px 16px;text-align:center;font-weight:800;line-height:1.4}
+.preview-warning small{display:block;font-weight:600;margin-top:2px}
+</style></head><body>
+<div class="preview-warning" role="status">
+  AMBIENTE TEMPORÁRIO DE TESTE — NÃO UTILIZAR PARA PAGAMENTO
+  <small>Versão candidata a83f551 · use somente dados fictícios.</small>
+</div>
+<header class="site-header">
+  <div class="site-nav">
+    <a href="https://kontamais.com.br/" class="site-logo" aria-label="Konta+ — início">
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAVsAAABECAMAAAAY5mYlAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAAAwFBMVEUAAAAIVaYTn1b0+ff8xh0BDHNQlqonc7it1dFbkbR+fn5EeLBrmMZVqao5dLSdt9VYjcQAfBBDfLj68a48r3V8fP9Ds3oSenpepu///34EOrx1x54msm4A//8AAP+b2bFXWav82miJ0K7811P655g8dKxDsnp///9MtYaIrdJjsWR//39lxJT/qgCpqan31nEA/wD7vhFk4KP65o5Be7kUePIHtjQvkpzwqmP//wA0sHQA/39kksVKwIWqqlWuyeRuW6YPAAAAQHRSTlMA/fwN/gKeAyVlAmheA6EtlwKiMaoCzgIPAgNkAwEBKAOdVORkaK0Cy0sDAo8DA3oB/BSQzgMECAQBfwLbyQNMCm6fyQAAC15JREFUeNrtnAtbo8gShsuUIYDB3MxlJEDMaDQm64k6urvntv//X51uIKYv1dAhkOfMPlPP7uysIJeXj6+rq7uB4YUcXZiCFB3oXmjhjKYwur/7hxR37wgvAf8dxMRLI3GR/3/gAx2zq6uHKxYzdhpjRHw3vt/Dw0P2l9n+h/mP8qOUh+fKh8Zu9ssPHsRgHT44EyFaTwg7aj+VWl+5yzGF9mIGzzD6finH93ccsMtNQqclhBMmjO+AotuGrye7hoXxVm6hr11kW/+hVfQgOBw4iNeHDbFvzXYANy0pELAC2zEgcYVrePwGo8tXCe07P767nbS0mIRMLnMk2F4L78vYzNbT2QrP5Ti2j+LNHc7vFL05GttVDWyjDhK34DHf4Gwl0d5zsk7LEA47eVDElsH9QFu2DmfrnMp2DD1hC4J/XrZT6g6YaiKZ7evlHTs4blsFsUWYYgFb9sRuozOz7Ut3tTgr21vKbH9gmx1JZPt6+R4Bhq3imCSgXILMlj8zPMITTmU7BlfahHF0RraP0kuzDzd1Rkm3zA/QaZUGk+5jAVsTXJLt7clsA6U19HTTao4tGtqxGUhsXzla96llEY5saipbdnLK9JrxBFW23HHxXGzZq0+0Y918u6BbjrZlFwzupoDtBds+PhPbjnaArm2qcHoONqMyyK/Ne7asGbNH2+JpNhawJeE24rd+rL+UGOF52LapdmyI7Vhme/mdHXhizZYpdxoVsL3o63AbYUt1N7uWjnsqW92OMkva3/ieLUe70lKCLeuMsUhCvSuxZV26ArZcuUHznkC3JTjFM/gtfe5e1o6JbJnZqhnCVuq0a/2JJbwUsWU5npJpNsF2RnblLYV7om476BSfOmfLZJvoPbDB/M0Ppuw/z3PQ07OvygbNlsPtWbA9qc8bI7kZ4+bZko9VakdztveK2U6W7NR5KoDpCZMBwJJ2BQNbDjcoZ+tVQPsjZxuQsrVNFU5i24E1YYSMhcqWyVbqjq0QBulpNpCsWpMVL9LAy0B5AG6OzsSW+3qnpC2LwD1EL/33L40U9li4YmR2xBIC04mjuFm2Y6o/lnV1FbaKbJkfzLPNu70RbJmQg7myW14jNrMVnZ3WLXEr2kVfmeAsDLK1dNwT2GIHC1OEnC1qsp0c3uXdoXDDG/4AUBbupoQtg9spYYvj8dgf+1nwv2psvXGQbtrvxP6al6BMsr24xo9G2ZJNcE9pvFO2imzdQ3rFPOGrFzxx4fFZ8txtJu8ituyE7aN06+tJo6lCEBhly4X72KgndC1MPmWLOzFJCPeGkDdlbrLMjSGBx6mUqiFEZWwv1vvRJdJvT2EbY0Frh9MG2VKdhr7WfnK2zBI80RHmO+le0yzByU8uu8ISklK2DG67EbYLqqUWzir9UsS6QD7m4ad/85+/qWw3L6gHwRapvtJtrLEdfb+TLCFU7gQ3G9aIZYbs4GYuPocte/albNnLcnuMJ/Qs2ZI1qIPjQrlwdd2CnW6HVDumlf4425GkRbLDuBlkRhvCm7jzBMGCLYPbrp/tGGaKDajjrAvJ2YhQCyh8pyTblBz20tl2TdVwiu1STKxoc/tMjXaCu7nYP0ufVilbBndRe1s2ReWsCoOhdLdPraox0dj+uzxF2LN9n4kZWLLbkGw3A8yas0Dam2dh5Wy5crFetlry7sCTeUwNW9UDyvuJXdKAvsH9u1SmcU3jpHPY5klEIprzmxVbDvejKluyI7BQM0xXzYscQUsNs0VybBthJJXAJllaRQk3LZ2vZLYez9ds2LIGoFbd+rEmW60n4R7U1DDbftZaU3iFOuYqbfnpKUfpBbLrFS70n9ZsebW8RrYfalvNLd1THXdxJrbGPvZOPLOZLfh8eH0JwQ5vhJZvYMuWkayPrV4qwdgHNDbeTbO9cEm4f24s2e7LjWJ3xrHXLdNRt7a+g+a2XDjaDJf+V9vROFvz6PLKju0AUgcT0sIbmu3aDnbltmxKDJyP2V5rQsxnYjvENtGWjcQRBadwpInrNhIv1NCWedhvlG2gKtTJygeoKb5zLrZEHsZysHtRt63SmRO+RQ7WBRxWZlveL9P5r9NcVh/E2N/NGdiqFYwsv43k/HZTzDYQe3Eh3Xfw4rbNvFpLtppuNbfNB8j01qybpwrnYKuWxvU+b1hWsZ/KTwJJthDE6DSlWz9CQ+m0Q0CPz8Z2qJTCMrauOFQ2KESLO1QLuBTbDmPeb4itXpnev/oL7ZdzFzwL233BT2QrDzskxcKVygkO0jVGD2aA7YJhgVPYolYT5xMn94VZeh4IVq/VPNmzZXBnyljknSvWZB152EGV7b9QGqJ4NrKlmpZa2OojkF1ha5e2CyRDrTGScQRbuYqbjelEiTSY8FbktqE2CGJii7clyq3WlulDORKKY+aBVKuN709K3RF2YnkMXRmLLEjDXiTncrKOhomtYeHVibqdlVoN9WQoQT5rbH173fbAMF2qI7NVxtAd+ERTbisZV27NZrZQrNwqbM3zPYzvaVzzWGTOkJ7yvpbn2vEZ4yjPRiLXkXGvcOR5olDCFj6KBgyrsA2OlG3BPJAT2HJ5YhuLLTdjK4/0pisa9AYN58p0u2U+j6GILbuGXq1sp8fK9uLaNJxenW22is0nb+1QWEg94VWba5euI5OK5FGgzmR0zHPtBLZEznkK28XRsjUv1qzMltGJzRejzsnX5ohOluw0n3u8GPBVqMrqKNxPdCxmWwC3Atv20bL9KuTUx/Zrv47BcgNpbvM7yK7AZLmUToRLdep4aNatnEN3AOtiO64gW96mj+tk64nrdOhCua/OyVdnhk8YXswS75Badraf3FTGlk/GMQwzHcs2riBbeVSyDrZRu+BqU4e/RZu1JDeOszJ1B0PTXDuFLV+qPayDbTXZ8tXp41p12y6obRxu7LC+jK+BmhzZ187glrM1wD2arY/Xldj24aNGtpKV0Zab5n3y2r3k2ELGkh530NhyuI4lW/N42aKibOkpRfWwpVfrpLVccT2v9ZpTBa4NWw63fyrbMQ4rsiVXp9fCll0bmQaxZk5g+2q7VlqFa8UWiIKuJdurnC2VzB2+szIcOs7wyhk6Vw9XQ0JHUUNsjZbbkb9N8R6pi3GIuWfLJ8Vzp0Rhb0aUJ7VxHuscbEHP95Cri2IMbYRbE1sGd0habg9Q/F5N+m0Kp2SBv1Jo5jXJrgVbQPUJH5ffUi8fdmYdPYL22mZ+bF1sDVluD17gXvzwR8k3VfhayWcVbgi/K9Botly5XnW2U0q29DqyCAnhTptia7DcH9gewZ30wZq7dAzEIdIxJ8T0W0AvunJ/l8tdHs0WYnmc5yi2j8QiA1OlmUooMMam2LIn7Bm6LMwVXnW6bij2GW5WIe+jzf28n6XClV93E1suvnVFtkQiafyoUkRUy/RSY31sjZb7onwijBnD3X3W13Xf3rww9N7esmXTX9+vSnS4Ul3VzJZd1rpS3yEiZNszflNpQQgJoTm2SHfG1/CHaLlf4r0fjaSpzdJH7V6KlVu0nrZ9gHeMbgllXJPLKjPhxlgyCJuynVix9a7yT+89ZH8ExCxxdtmep359z+uCz+De6fE+il42wTOLYIPEwNlE89zZ9cM1i4fhrOgjXR22X7rbdZf4wh9C7+qaJavXebCUNUiPhn3+w+Eh+rOCz1WxvNDhxxh+Hcnpqo9iB94Ni9VNHp71l27I6cmG+PP4Y2m2gGYf0O7754pAzO+m0w6tG59IBtOO9h+/afHtv1gGd6LUbcbscLf8n5IvdI077VsetOwi9Qqn+yRDieKzTNXdiSHJ58/BfDAYfH4O+J/z/5/HqeS5xXNGfsUptuD9YltnSA2aa7Hy+1dUsoXwp2uifgJb+E/uCL/QNmALnvO0TWDwt73F/wFCA/223LaVhwAAAABJRU5ErkJggg==" alt="Konta+" width="173" height="34">
+    </a>
+    <nav class="nav-links" aria-label="Principal">
+      <a href="https://kontamais.com.br/">Início</a>
+      <a href="https://comunidade.kontamais.com.br/">Comunidade</a>
+      <a href="https://comunidade.kontamais.com.br/gru-eleitoral" aria-current="page">GRU Eleitoral</a>
+      <a class="btn-pill" href="https://comunidade.kontamais.com.br/">Acessar<span class="hide-xs">comunidade</span></a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+<div class="page-head">
+  <h1><small>PagTesouro · Justiça Eleitoral · Eleições 2026</small>Espelho GRU Eleitoral</h1>
+  <a class="portal-link" href="https://pagtesouro.tesouro.gov.br/portal-gru/#/pagamento-gru" target="_blank" rel="noopener">Abrir Portal PagTesouro ↗</a>
+</div>
+
+<div class="grid">
+<!-- ================= FORMULÁRIO ================= -->
+<section class="panel" id="form-panel">
+  <h2>1 · Dados da guia</h2>
+  <form id="f" autocomplete="off">
+
+  <fieldset>
+    <legend>Eleição e cargo</legend>
+    <div class="row">
+      <label>Eleição
+        <select id="ano">
+          <option value="2026">2026 — Gerais (4/10 e 25/10)</option>
+          <option value="2024">2024 — Municipais</option>
+          <option value="2022">2022 — Gerais</option>
+        </select>
+      </label>
+      <label>Cargo / titular da conta
+        <select id="cargo"></select>
+      </label>
+    </div>
+    <div class="row two" style="margin-top:10px">
+      <label>Nome completo do candidato (ou do diretório)
+        <input id="nomeBase" placeholder="como consta no CNPJ" style="text-transform:uppercase">
+      </label>
+    </div>
+    <p class="hint" id="cargoHint"></p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Órgão e serviço (tela 1 do portal)</legend>
+    <div class="row two">
+      <label>Órgão Arrecadador
+        <input id="orgao" value="14000 - JUSTICA ELEITORAL" readonly>
+      </label>
+      <label>Unidade Gestora Arrecadadora
+        <select id="ug">
+          <option value="070018 - TRIBUNAL REGIONAL ELEITORAL DE SAO PAULO">070018 - TRE-SP</option>
+          <option value="070001 - TRIBUNAL SUPERIOR ELEITORAL">070001 - TSE</option>
+          <option value="070011 - TRIBUNAL REGIONAL ELEITORAL DE ALAGOAS">070011 - TRE-AL</option>
+          <option value="070029 - TRIBUNAL REGIONAL ELEITORAL DO AMAPA">070029 - TRE-AP</option>
+          <option value="070007 - TRIBUNAL REGIONAL ELEITORAL DO CEARA">070007 - TRE-CE</option>
+          <option value="070025 - TRIBUNAL REGIONAL ELEITORAL DO DISTRITO FEDERAL">070025 - TRE-DF</option>
+          <option value="070015 - TRIBUNAL REGIONAL ELEITORAL DO ESPIRITO SANTO">070015 - TRE-ES</option>
+          <option value="070023 - TRIBUNAL REGIONAL ELEITORAL DE GOIAS">070023 - TRE-GO</option>
+          <option value="070022 - TRIBUNAL REGIONAL ELEITORAL DE MATO GROSSO">070022 - TRE-MT</option>
+          <option value="070019 - TRIBUNAL REGIONAL ELEITORAL DO PARANA">070019 - TRE-PR</option>
+          <option value="070017 - TRIBUNAL REGIONAL ELEITORAL DO RIO DE JANEIRO">070017 - TRE-RJ</option>
+          <option value="070021 - TRIBUNAL REGIONAL ELEITORAL DO RIO GRANDE DO SUL">070021 - TRE-RS</option>
+          <option value="070020 - TRIBUNAL REGIONAL ELEITORAL DE SANTA CATARINA">070020 - TRE-SC</option>
+          <option value="070012 - TRIBUNAL REGIONAL ELEITORAL DE SERGIPE">070012 - TRE-SE</option>
+          <option value="070027 - TRIBUNAL REGIONAL ELEITORAL DE TOCANTINS">070027 - TRE-TO</option>
+          <option value="__outra">Outra UG (digitar)</option>
+        </select>
+      </label>
+    </div>
+    <div class="row two" id="ugOutraRow" hidden>
+      <label>Código e nome da UG
+        <input id="ugOutra" placeholder="código confirmado na decisão ou no tribunal">
+      </label>
+    </div>
+    <p class="hint">Conta eleitoral: UG do estado em que o cargo foi disputado (TSE para presidente). Conta partidária: UG da esfera do partido. <b>Confira a unidade arrecadadora indicada na decisão judicial.</b></p>
+    <div class="row" style="margin-top:10px">
+      <label>Serviço
+        <select id="servico">
+          <optgroup label="Contas eleitorais">
+            <option value="014297 - DEVOLUÇÃO RECURSOS FUND ESP FIN CAMPANHA - FEFC" data-origem="3" data-tipo="1" data-pag="014297" data-receita="18822-0" data-confirmed="true">014297 - Devolução Recursos Fund Esp Fin Campanha - FEFC</option>
+            <option value="016432 - STN OUTRAS RECEITAS" data-tipo="1" data-pag="016432" data-receita="18822-0" data-confirmed="partial">016432 - STN Outras Receitas (confirmar nome no portal)</option>
+            <option value="PENDENTE - LOCALIZAR NO PORTAL PELA RECEITA 18005-0" data-origem="2" data-tipo="1" data-receita="18005-0" data-confirmed="false">Receita 18005-0 - localizar serviço no portal</option>
+            <option value="PENDENTE - LOCALIZAR NO PORTAL PELA RECEITA 18010-6" data-origem="2" data-tipo="1" data-receita="18010-6" data-confirmed="false">Receita 18010-6 - localizar serviço no portal</option>
+            <option value="PENDENTE - LOCALIZAR NO PORTAL PELA RECEITA 18011-4" data-origem="1" data-receita="18011-4" data-confirmed="false">Receita 18011-4 - localizar serviço no portal</option>
+          </optgroup>
+          <optgroup label="Contas partidárias">
+            <option value="PENDENTE - LOCALIZAR NO PORTAL PELA RECEITA 18002-5" data-origem="2" data-tipo="2" data-receita="18002-5" data-confirmed="false">Receita 18002-5 - localizar serviço no portal</option>
+            <option value="PENDENTE - LOCALIZAR NO PORTAL PELA RECEITA 20006-9" data-origem="2" data-tipo="2" data-receita="20006-9" data-confirmed="false">Receita 20006-9 - localizar serviço no portal</option>
+            <option value="PENDENTE - LOCALIZAR NO PORTAL PELA RECEITA 20001-8" data-tipo="2" data-receita="20001-8" data-confirmed="false">Receita 20001-8 - localizar serviço no portal</option>
+          </optgroup>
+          <optgroup label="Outros">
+            <option value="PENDENTE - LOCALIZAR NO PORTAL PELA RECEITA 18003-3" data-receita="18003-3" data-confirmed="false">Receita 18003-3 - localizar serviço no portal</option>
+          </optgroup>
+        </select>
+      </label>
+    </div>
+    <p class="hint" id="servHint">No portal, a lista mostra <b>código PagTesouro de 6 dígitos - nome do serviço</b>. Ele não é o código de receita do manual. No TRE-SP estão confirmados <b>014297 - DEVOLUÇÃO RECURSOS FUND ESP FIN CAMPANHA - FEFC</b> e o código <b>016432</b> para STN Outras Receitas; confira o nome exibido no portal.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Número de referência (20 dígitos)</legend>
+    <div class="row">
+      <label>Tipo de conta
+        <select id="tipo"><option value="1">1 - Eleitoral</option><option value="2">2 - Partidária</option></select>
+      </label>
+      <label>Origem do recurso
+        <select id="origem">
+          <option value="1">1 - FP (Fundo Partidário)</option>
+          <option value="2">2 - Outros recursos</option>
+          <option value="3">3 - FEFC</option>
+        </select>
+      </label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label>Parcela atual <input id="parcela" class="mono" value="01" maxlength="2" inputmode="numeric"></label>
+      <label>Total de parcelas <input id="parcelas" class="mono" value="01" maxlength="2" inputmode="numeric"></label>
+      <label>Nº candidato / partido <input id="cand" class="mono" maxlength="5" inputmode="numeric" placeholder="até 5 dígitos"></label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label>Processo PJe (número completo ou os 9 dígitos)
+        <input id="pje" class="mono" placeholder="0600280-39.2024.6.26.0424">
+      </label>
+    </div>
+    <p class="hint" id="pjeHint">Partido com número de 2 dígitos vira <b>00022</b>; do PJe entram só os <b>9 dígitos antes do ano</b> (0600280-39 → 060028039).</p>
+    <div class="ref">
+      <div class="digits" id="refDigits"></div>
+      <div class="legend">
+        <span class="s1"><i></i>tipo + origem</span><span class="s2"><i></i>parcela/total</span><span class="s3"><i></i>candidato/partido</span><span class="s4"><i></i>nº PJe</span>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Contribuinte (tela 2 do portal)</legend>
+    <div class="row two">
+      <label>CPF ou CNPJ do contribuinte <input id="doc" class="mono" placeholder="00.000.000/0001-00" inputmode="numeric"></label>
+      <label>Nome do contribuinte <input id="nome" placeholder="ELEICAO 2026 NOME COMPLETO CARGO" style="text-transform:uppercase"></label>
+    </div>
+    <p class="hint">O nome é montado automaticamente no padrão da Receita (<b>ELEICAO {ano} {nome} {cargo}</b>) a partir do cargo e do nome acima. Confira com o cartão CNPJ; edite se for diferente.</p>
+    <div class="row two" style="margin-top:10px">
+      <label>Competência (mm/aaaa) <input id="comp" class="mono" placeholder="12/2026" maxlength="7"></label>
+      <label>Vencimento (dd/mm/aaaa) <input id="venc" class="mono" placeholder="03/11/2026" maxlength="10"></label>
+    </div>
+    <div class="actions" id="vencSug"></div>
+    <p class="hint" id="vencHint"></p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Valores</legend>
+    <div class="row">
+      <label>Valor principal (R$) <input id="vprinc" class="mono" inputmode="decimal" placeholder="0,00"></label>
+      <label>(−) Descontos/abatimentos <input id="vdesc" class="mono" inputmode="decimal" placeholder="0,00"></label>
+      <label>(+) Mora/multa <input id="vmora" class="mono" inputmode="decimal" placeholder="0,00"></label>
+      <label>(+) Juros/encargos <input id="vjuros" class="mono" inputmode="decimal" placeholder="0,00"></label>
+    </div>
+    <p class="hint">Para atualizar valor com juros e correção, use a calculadora de débito do TCU (contas.tcu.gov.br/debito) e lance aqui o resultado.</p>
+  </fieldset>
+
+  <div class="actions">
+    <button type="button" class="primary" id="btnSalvar">Salvar no histórico</button>
+    <button type="button" id="btnExemplo">Carregar exemplo</button>
+    <button type="button" id="btnLimpar">Limpar</button>
+  </div>
+  </form>
+</section>
+
+<!-- ================= ESPELHO ================= -->
+<section class="panel espelho">
+  <h2>2 · Espelho para preencher o portal</h2>
+  <div class="brand"><strong>Pagamento de GRU</strong><span data-out="eleicaoLbl"></span></div>
+  <div id="statusGuia" class="status err" role="status">STATUS: PENDENTE — NÃO UTILIZAR PARA PAGAMENTO</div>
+
+  <div class="group"><h3>Tela 1 · Órgão e serviço</h3>
+    <div class="field"><div><div class="k">Órgão Arrecadador</div><div class="v" data-out="orgao"></div></div><button class="copy" data-copy="orgao">Copiar</button></div>
+    <div class="field"><div><div class="k">Unidade Gestora Arrecadadora</div><div class="v" data-out="ugFinal"></div></div><button class="copy" data-copy="ugFinal">Copiar</button></div>
+    <div class="field"><div><div class="k">Serviço <em>(Obrigatório)</em></div><div class="v" data-out="servico"></div></div><button class="copy" data-copy="servico">Copiar</button></div>
+  </div>
+
+  <div class="group"><h3>Tela 2 · Dados do pagamento</h3>
+    <div class="field"><div><div class="k">CPF ou CNPJ do Contribuinte</div><div class="v mono" data-out="docFmt"></div></div><button class="copy" data-copy="docDigits">Copiar</button></div>
+    <div class="field"><div><div class="k">Nome do Contribuinte <em>(Obrigatório)</em></div><div class="v" data-out="nomeUp"></div></div><button class="copy" data-copy="nomeUp">Copiar</button></div>
+    <div class="field"><div><div class="k">Número de Referência <em>(Obrigatório)</em></div><div class="v mono" data-out="ref"></div></div><button class="copy" data-copy="ref">Copiar</button></div>
+    <div class="field"><div><div class="k">Competência</div><div class="v mono" data-out="comp"></div></div><button class="copy" data-copy="comp">Copiar</button></div>
+    <div class="field"><div><div class="k">Vencimento</div><div class="v mono" data-out="venc"></div></div><button class="copy" data-copy="venc">Copiar</button></div>
+    <div class="field"><div><div class="k">Valor Principal <em>(Obrigatório)</em></div><div class="v mono" data-out="vprincRaw"></div></div><button class="copy" data-copy="vprincRaw">Copiar</button></div>
+    <div class="field"><div><div class="k">(−) Descontos/Abatimentos</div><div class="v mono" data-out="vdescRaw"></div></div><button class="copy" data-copy="vdescRaw">Copiar</button></div>
+    <div class="field"><div><div class="k">(+) Mora/Multa</div><div class="v mono" data-out="vmoraRaw"></div></div><button class="copy" data-copy="vmoraRaw">Copiar</button></div>
+    <div class="field"><div><div class="k">(+) Juros/Encargos</div><div class="v mono" data-out="vjurosRaw"></div></div><button class="copy" data-copy="vjurosRaw">Copiar</button></div>
+    <div class="total"><span>Valor Total</span><span class="v" data-out="totalRaw"></span></div>
+  </div>
+
+  <div class="group"><h3>Conferência</h3>
+    <ul class="checks" id="checks"></ul>
+  </div>
+
+  <div class="actions" style="margin-top:14px">
+    <button type="button" class="primary" id="btnCopiarTudo">Copiar espelho completo (texto)</button>
+    <button type="button" id="btnVerTexto">Ver texto</button>
+  </div>
+  <textarea id="txt" hidden readonly></textarea>
+</section>
+</div>
+
+<!-- ================= HISTÓRICO ================= -->
+<section class="panel">
+  <h2>3 · Histórico de guias (fica salvo só neste navegador)</h2>
+  <p class="hint"><b>Privacidade:</b> os dados são processados exclusivamente neste navegador e não são enviados à Konta+. O histórico permanece neste dispositivo até ser excluído. Evite usar o histórico em computador compartilhado.</p>
+  <div class="actions"><button type="button" class="small" id="btnLimparHist">Limpar todo o histórico</button></div>
+  <div class="hist" id="hist"></div>
+</section>
+
+<details>
+  <summary>Tabela de referência — serviços e codificação (manual STN/TSE, minuta v.12, nov/2024)</summary>
+  <div class="tbl">
+  <table>
+    <tr><th>Posição</th><th>Dado</th><th>Tam.</th><th>Regra</th></tr>
+    <tr><td>1</td><td>Tipo de conta</td><td>1</td><td>1 = Eleitoral · 2 = Partidária</td></tr>
+    <tr><td>2</td><td>Origem do recurso</td><td>1</td><td>1 = FP · 2 = Outros recursos (RONI, fonte vedada) · 3 = FEFC</td></tr>
+    <tr><td>3–4</td><td>Parcela atual</td><td>2</td><td>Parcela única = 01</td></tr>
+    <tr><td>5–6</td><td>Total de parcelas</td><td>2</td><td>Parcela única = 01</td></tr>
+    <tr><td>7–11</td><td>Nº partido ou candidato</td><td>5</td><td>Completar com zeros à esquerda</td></tr>
+    <tr><td>12–20</td><td>Nº PJe</td><td>9</td><td>Os 9 dígitos iniciais do processo (antes do ano)</td></tr>
+  </table>
+  <table>
+    <tr><th>Código PagTesouro</th><th>Nome exibido no portal (TRE-SP)</th><th>Receita do manual</th></tr>
+    <tr><td>014297</td><td>DEVOLUÇÃO RECURSOS FUND ESP FIN CAMPANHA - FEFC</td><td>18822-0</td></tr>
+    <tr><td>016432</td><td>STN OUTRAS RECEITAS — confirmar a redação exata no portal</td><td>18822-0</td></tr>
+  </table>
+  <table>
+    <tr><th>Serviço</th><th>Conta</th><th>Destino</th><th>Base legal (resumo)</th></tr>
+    <tr><td>18822-0 FEFC - Devolução espontânea ou recolhimento</td><td>Eleitoral</td><td>Tesouro</td><td>Res. TSE 23.607/2019 art. 17 §9º, 50 §5º, 79 §1º, 80 §3º</td></tr>
+    <tr><td>18822-0 STN Outras receitas</td><td>Eleitoral</td><td>Tesouro</td><td>Res. TSE 23.607/2019 art. 21 §§3º e 4º</td></tr>
+    <tr><td>18005-0 Prest. contas campanha - Fontes vedadas</td><td>Eleitoral</td><td>Tesouro</td><td>Res. TSE 23.607/2019 art. 31</td></tr>
+    <tr><td>18010-6 Prest. contas campanha - RONI</td><td>Eleitoral</td><td>Tesouro</td><td>Res. TSE 23.607/2019 art. 32</td></tr>
+    <tr><td>18011-4 Dev. rec. Fundo Partidário aplic. irregular</td><td>Ambas</td><td>Tesouro</td><td>Lei 9.504/97 arts. 30, 30-A, 105; Lei 9.096/95 art. 30 e ss.</td></tr>
+    <tr><td>18002-5 Prest. contas partido - Fontes vedadas</td><td>Partidária</td><td>Tesouro</td><td>Res. TSE 23.546/2017 arts. 12 e 14</td></tr>
+    <tr><td>20006-9 Prest. contas partido - RONI</td><td>Partidária</td><td>Tesouro</td><td>Res. TSE 23.546/2017 arts. 13 e 14</td></tr>
+    <tr><td>20001-8 Multas Código Eleitoral / leis conexas</td><td>Partidária</td><td>Fundo Partidário</td><td>Portaria 288/2005; Res. TSE 21.975/2004</td></tr>
+    <tr><td>18003-3 Multas condutas vedadas - agentes públicos</td><td>Outros</td><td>Fundo Partidário</td><td>Lei 9.504/97 art. 73 §4º</td></tr>
+  </table>
+  <table>
+    <tr><th colspan="2">Modalidades de GRU — IN STN/MF nº 8, de 25/10/2024 (DOU 1/11/2024; revoga IN STN 2/2009 e 120/2020)</th></tr>
+    <tr><td>GRU Digital (não impressa, preferencial)</td><td>Pix, cartão de crédito ou carteira digital pelo PagTesouro. Pix: repasse instantâneo; cartão/carteira: repasse no dia útil seguinte (arts. 2º, 9º e 10).</td></tr>
+    <tr><td>GRU Simples (impressa)</td><td>Não compensável; pagamento exclusivo no Banco do Brasil (art. 3º, I).</td></tr>
+    <tr><td>GRU Cobrança (impressa)</td><td>Boleto compensável, qualquer banco, <b>somente a partir de R$ 50,00</b> (art. 3º, II).</td></tr>
+    <tr><td>Restituição</td><td>Requerimento do contribuinte à UG arrecadadora (o TRE), com documentos; devolução por ordem bancária (art. 11).</td></tr>
+  </table>
+  <table>
+    <tr><th colspan="2">Unidades Gestoras da Justiça Eleitoral confirmadas (tabela STN "Código para preenchimento da GRU", v. 28/4/2026)</th></tr>
+    <tr><td>TSE 070001</td><td>SP 070018 · RJ 070017 · PR 070019 · SC 070020 · RS 070021 · MT 070022 · GO 070023 · DF 070025 · TO 070027 · AP 070029 · CE 070007 · AL 070011 · SE 070012 · ES 070015</td></tr>
+    <tr><td>Demais TREs</td><td>Não constam da tabela; use "Outra UG" com o código indicado pelo tribunal.</td></tr>
+  </table>
+  </div>
+</details>
+
+<footer>
+  <div class="feedback">
+    <p><strong>Encontrou um erro ou tem uma sugestão de melhoria?</strong> Fale com a gente pelo WhatsApp.</p>
+    <a class="btn-pill btn-wa" id="btnWhats" href="https://wa.me/551130429410?text=Ol%C3%A1!%20Uso%20o%20Espelho%20GRU%20Eleitoral%20(v1.6)%20e%20quero%20relatar%20um%20erro%20%2F%20sugerir%20uma%20melhoria%3A%20" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38a9.9 9.9 0 0 0 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91A9.85 9.85 0 0 0 12.04 2zm0 18.15h-.01a8.23 8.23 0 0 1-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.2 8.2 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24a8.2 8.2 0 0 1 8.24 8.25c0 4.54-3.7 8.23-8.23 8.23zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.12-.16.25-.64.81-.78.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.02-.38.11-.5.11-.11.25-.29.37-.43.13-.15.17-.25.25-.42.08-.16.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.43.06-.66.31-.23.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.24 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.14-1.18-.06-.1-.22-.16-.47-.28z"/></svg>
+      Reportar erro ou sugerir melhoria
+    </a>
+  </div>
+  <div>
+    <h4>Autoria</h4>
+    <p><strong>Tiago Adami</strong> — contador e administrador<br>CRC-SP 232101/O-2 · CRA-SP 93709<br>T. Adami Consultoria · Jundiaí/SP</p>
+  </div>
+  <div>
+    <h4>Ficha da ferramenta</h4>
+    <p>Espelho GRU Eleitoral <span class="badge">v1.6</span></p>
+    <p>Criada em 08/10/2026 · última atualização 12/10/2026</p>
+    <p>Base: Manual GRU TSE/STN (minuta v.12, nov/2024) · IN STN/MF nº 8/2024 · Tabela STN de códigos GRU (v. 28/4/2026) · Res. TSE 23.607/2019 (consolidada pela 23.752/2026)</p>
+  </div>
+  <div>
+    <h4>Konta+</h4>
+    <p><a href="https://comunidade.kontamais.com.br" rel="home" style="color:var(--accent);font-weight:600">Voltar para a Comunidade Konta+ ↗</a></p>
+    <p>Comunidade técnica sobre prestação de contas eleitorais. Iniciativa independente, sem vínculo com o TSE, os TREs ou a Justiça Eleitoral.</p>
+    <p>Conteúdo informativo e colaborativo; não substitui a análise profissional de casos concretos. A infraestrutura desta comunidade é mantida pela T. Adami Consultoria.</p>
+  </div>
+</footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const F=['ano','cargo','nomeBase','ug','ugOutra','servico','tipo','origem','parcela','parcelas','cand','pje','doc','nome','comp','venc','vprinc','vdesc','vmora','vjuros'];
+
+// Calendário e cargos por eleição. Prazos: Res. TSE 23.607/2019 art. 49 (contas finais até 30 dias após a eleição;
+// quem disputa 2º turno, até 20 dias após). A data fixada na decisão/intimação prevalece.
+const ELEICOES={
+  '2026':{t1:'04/10/2026',t2:'25/10/2026',comp:'12/2026',venc1:'03/11/2026',venc2:'14/11/2026',
+    cargos:[
+      {k:'PRESIDENTE',n:'Presidente',d:2,ug:'tse'},
+      {k:'GOVERNADOR',n:'Governador',d:2},
+      {k:'SENADOR',n:'Senador',d:3},
+      {k:'DEPUTADO FEDERAL',n:'Deputado Federal',d:4},
+      {k:'DEPUTADO ESTADUAL',n:'Deputado Estadual',d:5},
+      {k:'DEPUTADO DISTRITAL',n:'Deputado Distrital (DF)',d:5},
+      {k:'PARTIDO',n:'Partido / diretório (conta eleitoral do partido)',d:2,partido:true}],
+    pje:'Processo de 2026 no TRE-SP: <b>06xxxxx-xx.2026.6.26.0000</b> (zona 0000 = tribunal). Presidente: <b>…2026.6.00.0000</b> (TSE).'},
+  '2024':{t1:'06/10/2024',t2:'27/10/2024',comp:'12/2024',venc1:'05/11/2024',venc2:'16/11/2024',
+    cargos:[{k:'PREFEITO',n:'Prefeito',d:2},{k:'VEREADOR',n:'Vereador',d:5},{k:'PARTIDO',n:'Partido / diretório',d:2,partido:true}],
+    pje:'Processo de 2024: <b>06xxxxx-xx.2024.6.26.0ZZZ</b> (ZZZ = zona eleitoral do município).'},
+  '2022':{t1:'02/10/2022',t2:'30/10/2022',comp:'12/2022',venc1:'01/11/2022',venc2:'19/11/2022',
+    cargos:[{k:'PRESIDENTE',n:'Presidente',d:2,ug:'tse'},{k:'GOVERNADOR',n:'Governador',d:2},{k:'SENADOR',n:'Senador',d:3},{k:'DEPUTADO FEDERAL',n:'Deputado Federal',d:4},{k:'DEPUTADO ESTADUAL',n:'Deputado Estadual',d:5},{k:'PARTIDO',n:'Partido / diretório',d:2,partido:true}],
+    pje:'Processo de 2022 no TRE-SP: <b>06xxxxx-xx.2022.6.26.0000</b>.'}
+};
+const UG_TSE='070001 - TRIBUNAL SUPERIOR ELEITORAL';
+function cargoAtual(){const e=ELEICOES[$('ano').value];return e.cargos.find(c=>c.k===$('cargo').value)||e.cargos[0]}
+function fillCargos(keep){const e=ELEICOES[$('ano').value];const sel=$('cargo');const old=keep?sel.value:'';sel.innerHTML='';e.cargos.forEach(c=>{const o=document.createElement('option');o.value=c.k;o.textContent=c.n;sel.appendChild(o)});if(old&&e.cargos.some(c=>c.k===old))sel.value=old;}
+function montarNome(){const e=$('ano').value,c=cargoAtual(),n=$('nomeBase').value.trim().toUpperCase();if(!n)return'';return c.partido?n:`ELEICAO ${e} ${n} ${c.k}`}
+function aplicarEleicao(){const e=ELEICOES[$('ano').value];const c=cargoAtual();
+  if(!$('comp').value||Object.values(ELEICOES).some(x=>x.comp===$('comp').value))$('comp').value=e.comp; if(!$('venc').value||Object.values(ELEICOES).some(x=>[x.venc1,x.venc2].includes($('venc').value)))$('venc').value=e.venc1;
+  $('vencSug').innerHTML=`<button type="button" class="small" data-venc="${e.venc1}">1º turno (${e.t1}) → vence ${e.venc1}</button><button type="button" class="small" data-venc="${e.venc2}">2º turno (${e.t2}) → vence ${e.venc2}</button>`;
+  $('vencSug').querySelectorAll('[data-venc]').forEach(b=>b.addEventListener('click',()=>{$('venc').value=b.dataset.venc;render()}));
+  $('vencHint').innerHTML='Sugestões = prazo de entrega das contas finais (30 dias após o 1º turno; 20 dias após o 2º). <b>Prevalece a data fixada na decisão ou na intimação.</b>';
+  $('pjeHint').innerHTML=e.pje+' Entram só os <b>9 dígitos antes do ano</b>.';
+  if(c.ug==='tse')$('ug').value=UG_TSE; else if($('ug').value===UG_TSE)$('ug').value=$('ug').options[0].value;
+  $('tipo').value='1';
+  $('cargoHint').innerHTML=c.partido?'Conta eleitoral do partido: número do partido (2 dígitos) vira <b>00022</b>; para conta <b>partidária</b> (prestação anual), troque o tipo de conta para 2.':`Número de ${c.n.toLowerCase()} tem <b>${c.d} dígitos</b>. UG: ${c.ug==='tse'?'<b>TSE (070001)</b>':'TRE do estado da disputa (SP = <b>070018</b>)'}.`;
+  $('nome').value=montarNome();
+}
+const digits=s=>(s||'').replace(/\D/g,'');
+const pad=(s,n)=>digits(s).slice(-n).padStart(n,'0');
+const parseBRL=s=>{s=(s||'').trim();if(!s)return 0;s=s.replace(/\./g,'').replace(',','.');const n=parseFloat(s);return isNaN(n)?0:n};
+const fmtBRL=n=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const fmtRaw=n=>n.toFixed(2).replace('.',',');
+function fmtDoc(d){d=digits(d);if(d.length===11)return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4');if(d.length===14)return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,'$1.$2.$3/$4-$5');return d}
+function cnpjOk(c){c=digits(c);if(c.length!==14||/^(\d)\1+$/.test(c))return false;const calc=b=>{let w=b===12?[5,4,3,2,9,8,7,6,5,4,3,2]:[6,5,4,3,2,9,8,7,6,5,4,3,2],s=0;for(let i=0;i<w.length;i++)s+=c[i]*w[i];const r=s%11;return r<2?0:11-r};return calc(12)==c[12]&&calc(13)==c[13]}
+function cpfOk(c){c=digits(c);if(c.length!==11||/^(\d)\1+$/.test(c))return false;const calc=n=>{let s=0;for(let i=0;i<n;i++)s+=c[i]*(n+1-i);const r=(s*10)%11;return (r===10?0:r)};return calc(9)==c[9]&&calc(10)==c[10]}
+const dateOk=s=>{const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s||'');if(!m)return false;const d=new Date(+m[3],+m[2]-1,+m[1]);return d.getDate()==+m[1]&&d.getMonth()==+m[2]-1};
+const compOk=s=>{const m=/^(\d{2})\/(\d{4})$/.exec(s||'');return !!m&&+m[1]>=1&&+m[1]<=12};
+
+// BEGIN PJE CORE
+function pjeInfo(s){const d=digits(s);return {pje9:d.length>=9?d.slice(0,9):d,year:d.length===20?d.slice(9,13):'',validLength:d.length===9||d.length===20}}
+// END PJE CORE
+
+function compute(){
+  const v={};F.forEach(k=>v[k]=$(k).value);
+  v.orgao='14000 - JUSTICA ELEITORAL';
+  v.eleicaoLbl='Eleições '+v.ano+' · '+cargoAtual().n;
+  v.ugFinal=v.ug==='__outra'?v.ugOutra.trim():v.ug;
+  const candDigits=digits(v.cand), pji=pjeInfo(v.pje), pj=pji.pje9;
+  const p1=v.tipo+v.origem, p2=pad(v.parcela,2)+pad(v.parcelas,2), p3=candDigits?pad(candDigits,5):'·····', p4=pj.padEnd(9,'·');
+  v.refComplete=!!candDigits&&pji.validLength&&pj.length===9;
+  v.ref=v.refComplete?(p1+p2+pad(candDigits,5)+pj):'PENDENTE';
+  v.refHtml=`<span class="s1">${p1}</span><span class="s2">${p2}</span><span class="s3">${p3}</span><span class="s4">${p4}</span>`;
+  v.docDigits=digits(v.doc); v.docFmt=fmtDoc(v.doc);
+  v.nomeUp=v.nome.trim().toUpperCase();
+  const vp=parseBRL(v.vprinc),vd=parseBRL(v.vdesc),vm=parseBRL(v.vmora),vj=parseBRL(v.vjuros);
+  v.vprincFmt=fmtBRL(vp);v.vdescFmt=fmtBRL(vd);v.vmoraFmt=fmtBRL(vm);v.vjurosFmt=fmtBRL(vj);
+  v.vprincRaw=fmtRaw(vp);v.vdescRaw=fmtRaw(vd);v.vmoraRaw=fmtRaw(vm);v.vjurosRaw=fmtRaw(vj);
+  v.total=vp-vd+vm+vj;v.totalFmt=fmtBRL(v.total);v.totalRaw=fmtRaw(v.total);
+  return v;
+}
+
+function checks(v){
+  const out=[];const add=(lvl,msg)=>out.push({lvl,msg});
+  // referência
+  const pji=pjeInfo(v.pje), pj=pji.pje9;
+  if(v.refComplete)add('ok','Número de referência com 20 dígitos');else add('err',`Número de referência PENDENTE: ${!digits(v.cand)?'informe o número do candidato/partido':pj.length<9?'faltam dígitos do PJe':'confira os campos'}`);
+  const cg=cargoAtual();
+  if(!digits(v.cand))add('err','Informe o número do candidato ou do partido');
+  else if(digits(v.cand).length>5)add('err','Número do candidato/partido tem mais de 5 dígitos');
+  else if(digits(v.cand).length!==cg.d)add('err',`Número com ${digits(v.cand).length} dígitos; ${cg.n} em ${v.ano} usa ${cg.d}`);
+  if(!pji.validLength)add('err','Processo PJe deve conter exatamente 9 ou 20 dígitos');
+  if(pji.year&&pji.year!==v.ano)add('err',`Processo PJe é de ${pji.year}, mas a eleição selecionada é ${v.ano}`);
+  if(cg.ug==='tse'&&v.ugFinal!==UG_TSE)add('warn','Cargo de Presidente: a UG deve ser o TSE (070001)');
+  if(v.comp&&compOk(v.comp)&&v.comp.slice(3)!==v.ano)add('warn',`Competência ${v.comp} não é do ano da eleição (${v.ano})`);
+  const parcelaNum=Number(digits(v.parcela)||0), parcelasNum=Number(digits(v.parcelas)||0);
+  if(parcelaNum<1)add('err','Parcela atual deve ser maior ou igual a 01');
+  if(parcelasNum<1)add('err','Total de parcelas deve ser maior ou igual a 01');
+  if(parcelaNum>parcelasNum)add('err','Parcela atual maior que o total de parcelas');
+  const opt=$('servico').selectedOptions[0];
+  if(!opt)add('err','Selecione um serviço PagTesouro');
+  if(opt&&opt.dataset.origem&&opt.dataset.origem!==v.origem)add('err',`Serviço "${opt.text}" exige origem ${opt.dataset.origem}; você marcou ${v.origem}`);
+  if(opt&&opt.dataset.tipo&&opt.dataset.tipo!==v.tipo)add('err',`Serviço é de conta ${opt.dataset.tipo==='1'?'eleitoral':'partidária'}; tipo de conta marcado é ${v.tipo}`);
+  if(opt&&opt.dataset.confirmed==='false')add('err',`Serviço PagTesouro pendente: localize no portal pela receita ${opt.dataset.receita} e selecione o nome exato antes de utilizar o espelho`);
+  if(opt&&opt.dataset.confirmed==='partial')add('warn','Código PagTesouro 016432 confirmado; confira no portal a redação exata do nome do serviço');
+  // contribuinte
+  const d=v.docDigits;
+  if(!d)add('err','Informe o CPF/CNPJ do contribuinte');
+  else if(d.length===14)add(cnpjOk(d)?'ok':'err',cnpjOk(d)?'CNPJ válido':'CNPJ com dígito verificador inválido');
+  else if(d.length===11)add(cpfOk(d)?'ok':'err',cpfOk(d)?'CPF válido':'CPF com dígito verificador inválido');
+  else add('err','CPF/CNPJ com quantidade de dígitos inválida');
+  if(!v.nomeUp)add('err','Nome do contribuinte é obrigatório');
+  if(v.comp&&!compOk(v.comp))add('err','Competência deve ser mm/aaaa');
+  if(v.venc&&!dateOk(v.venc))add('err','Vencimento deve ser dd/mm/aaaa');
+  if(v.venc&&dateOk(v.venc)){const m=v.venc.split('/');const dt=new Date(+m[2],+m[1]-1,+m[0]);const hoje=new Date();hoje.setHours(0,0,0,0);if(dt<hoje)add('warn','Vencimento já passou — veja se precisa atualizar o valor (calculadora TCU)')}
+  if(parseBRL(v.vprinc)<=0)add('err','Valor principal deve ser maior que zero');
+  else if(v.total<=0)add('err','Valor total deve ser maior que zero');
+  else if(v.total<50)add('warn',`Total ${v.totalFmt} abaixo de R$ 50,00: boleto (GRU Cobrança) não é permitido — pague por Pix ou cartão no PagTesouro, ou GRU Simples só no Banco do Brasil (IN STN/MF 8/2024, art. 3º)`);
+  else add('ok','Pagamento: Pix/cartão no PagTesouro (GRU Digital), GRU Simples no BB ou GRU Cobrança em qualquer banco');
+  if(v.ug==='__outra'&&!v.ugOutra.trim())add('err','Informe o código e nome da UG');
+  return out;
+}
+
+let cur={};
+function render(){
+  cur=compute();
+  document.querySelectorAll('[data-out]').forEach(el=>{const k=el.dataset.out;const val=cur[k];if(val===''||val==null){el.textContent='—';el.classList.add('empty')}else{el.textContent=val;el.classList.remove('empty')}});
+  $('refDigits').innerHTML=cur.refHtml;
+  const ul=$('checks');ul.innerHTML='';const result=checks(cur);result.forEach(c=>{const li=document.createElement('li');li.className=c.lvl;li.textContent=c.msg;ul.appendChild(li)});
+  cur.hasErrors=result.some(c=>c.lvl==='err');
+  const status=$('statusGuia');status.className='status '+(cur.hasErrors?'err':'ok');status.textContent=cur.hasErrors?'STATUS: PENDENTE — NÃO UTILIZAR PARA PAGAMENTO':'STATUS: VALIDADO PELA FERRAMENTA — CONFIRA COM A DECISÃO E O PORTAL';
+  $('btnCopiarTudo').disabled=cur.hasErrors;
+  const refCopy=document.querySelector('[data-copy="ref"]');if(refCopy)refCopy.disabled=!cur.refComplete;
+  $('btnSalvar').textContent=cur.hasErrors?'Salvar rascunho no histórico':'Salvar no histórico';
+  $('txt').value=texto(cur);
+  $('ugOutraRow').hidden=cur.ug!=='__outra';
+}
+function texto(v){
+  const status=checks(v).some(c=>c.lvl==='err')?'STATUS: PENDENTE — NÃO UTILIZAR PARA PAGAMENTO':'STATUS: VALIDADO PELA FERRAMENTA — CONFIRA COM A DECISÃO E O PORTAL';
+  return [
+   status,'',
+   'ESPELHO GRU — PagTesouro (https://pagtesouro.tesouro.gov.br/portal-gru/#/pagamento-gru)',
+   v.eleicaoLbl,'',
+   'TELA 1',
+   'Órgão Arrecadador: '+v.orgao,
+   'Unidade Gestora Arrecadadora: '+v.ugFinal,
+   'Serviço: '+v.servico,'',
+   'TELA 2',
+   'CPF/CNPJ do Contribuinte: '+v.docFmt,
+   'Nome do Contribuinte: '+v.nomeUp,
+   'Número de Referência: '+v.ref,
+   'Competência: '+v.comp,
+   'Vencimento: '+v.venc,
+   'Valor Principal: '+v.vprincRaw,
+   '(-) Descontos/Abatimentos: '+v.vdescRaw,
+   '(+) Mora/Multa: '+v.vmoraRaw,
+   '(+) Juros/Encargos: '+v.vjurosRaw,
+   'Valor Total: '+v.totalRaw,'',
+   'Gerado em '+new Date().toLocaleString('pt-BR')+' · Espelho GRU Eleitoral v1.6 · Konta+ · Tiago Adami (CRC-SP 232101/O-2)'].join('\n');
+}
+
+// cópia
+let tt;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),1600)}
+function copyText(s,btn){const done=()=>{toast('Copiado: '+(s.length>40?s.slice(0,40)+'…':s));if(btn){btn.classList.add('done');btn.textContent='Copiado';setTimeout(()=>{btn.classList.remove('done');btn.textContent='Copiar'},1400)}};
+  const fb=()=>{const ta=$('txt');const was=ta.hidden;ta.hidden=false;const old=ta.value;ta.value=s;ta.select();try{document.execCommand('copy');done()}catch(e){toast('Selecione e copie manualmente')}ta.value=old;ta.hidden=was};
+  try{navigator.clipboard.writeText(s).then(done,fb)}catch(e){fb()}}
+document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',()=>copyText(String(cur[b.dataset.copy]||''),b)));
+$('btnCopiarTudo').addEventListener('click',()=>{if(cur.hasErrors)return;copyText(texto(cur),null)});
+$('btnVerTexto').addEventListener('click',()=>{$('txt').hidden=!$('txt').hidden});
+
+// máscaras leves
+$('comp').addEventListener('input',e=>{let d=digits(e.target.value).slice(0,6);e.target.value=d.length>2?d.slice(0,2)+'/'+d.slice(2):d});
+$('venc').addEventListener('input',e=>{let d=digits(e.target.value).slice(0,8);let o=d.slice(0,2);if(d.length>2)o+='/'+d.slice(2,4);if(d.length>4)o+='/'+d.slice(4);e.target.value=o});
+$('doc').addEventListener('blur',e=>{e.target.value=fmtDoc(e.target.value)});
+['vprinc','vdesc','vmora','vjuros'].forEach(id=>$(id).addEventListener('blur',e=>{if(e.target.value.trim())e.target.value=fmtRaw(parseBRL(e.target.value))}));
+$('servico').addEventListener('change',()=>{const o=$('servico').selectedOptions[0];if(o.dataset.origem)$('origem').value=o.dataset.origem;if(o.dataset.tipo)$('tipo').value=o.dataset.tipo;render()});
+$('ano').addEventListener('change',()=>{fillCargos(true);aplicarEleicao();render()});
+$('cargo').addEventListener('change',()=>{aplicarEleicao();render()});
+$('nomeBase').addEventListener('input',()=>{$('nome').value=montarNome();render()});
+F.forEach(k=>$(k).addEventListener('input',render));
+F.forEach(k=>$(k).addEventListener('change',render));
+
+// histórico (localStorage, best-effort)
+const KEY='espelho-gru-hist';
+function loadHist(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return []}}
+function saveHist(h){try{localStorage.setItem(KEY,JSON.stringify(h))}catch(e){toast('Não foi possível salvar neste navegador')}}
+$('btnLimparHist').addEventListener('click',()=>{if(!loadHist().length){toast('O histórico já está vazio');return}if(confirm('Excluir todo o histórico salvo neste navegador?')){saveHist([]);renderHist();toast('Histórico excluído')}});
+function renderHist(){const h=loadHist();const el=$('hist');el.innerHTML='';if(!h.length){el.innerHTML='<p class="empty">Nenhuma guia salva ainda. Preencha e clique em "Salvar no histórico".</p>';return}
+  h.forEach((it,i)=>{const d=document.createElement('div');d.className='item';
+    d.innerHTML=`<div><div class="n"></div><div class="m"></div></div><button class="small" data-load="${i}">Abrir</button><button class="small" data-del="${i}">Excluir</button>`;
+    d.querySelector('.n').textContent=(it.nome||'(sem nome)')+' · '+fmtBRL(it._total||0);
+    d.querySelector('.m').textContent=(it._ref||'')+'  venc. '+(it.venc||'—');
+    el.appendChild(d)});
+  el.querySelectorAll('[data-load]').forEach(b=>b.addEventListener('click',()=>{const it=loadHist()[+b.dataset.load];F.forEach(k=>{if(k in it)$(k).value=it[k]});render();toast('Guia carregada');window.scrollTo({top:0,behavior:'smooth'})}));
+  el.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{const h=loadHist();h.splice(+b.dataset.del,1);saveHist(h);renderHist()}));
+}
+$('btnSalvar').addEventListener('click',()=>{const it={};F.forEach(k=>it[k]=$(k).value);it._ref=cur.ref;it._total=cur.total;it._ts=Date.now();const h=loadHist();h.unshift(it);saveHist(h.slice(0,50));renderHist();toast('Salvo no histórico')});
+
+const UG_SP='070018 - TRIBUNAL REGIONAL ELEITORAL DE SAO PAULO';
+// Exemplo fictício para 2026 (CNPJ válido apenas no dígito verificador). Nº do candidato e processo NUNCA vêm preenchidos por padrão.
+const exemplo={ano:'2026',cargo:'DEPUTADO ESTADUAL',nomeBase:'FULANO DE TAL',ug:UG_SP,ugOutra:'',servico:'014297 - DEVOLUÇÃO RECURSOS FUND ESP FIN CAMPANHA - FEFC',tipo:'1',origem:'3',parcela:'01',parcelas:'01',cand:'',pje:'',doc:'61.234.567/0001-17',nome:'ELEICAO 2026 FULANO DE TAL DEPUTADO ESTADUAL',comp:'12/2026',venc:'03/11/2026',vprinc:'1.250,00',vdesc:'',vmora:'',vjuros:''};
+function setAll(o){$('ano').value=o.ano||'2026';fillCargos(false);F.forEach(k=>{if(k==='ano')return;$(k).value=(k in o)?o[k]:''});if(!('nome' in o))aplicarEleicao();render()}
+$('btnExemplo').addEventListener('click',()=>{setAll(exemplo);toast('Exemplo 2026 carregado — informe nº do candidato e processo')});
+$('btnLimpar').addEventListener('click',()=>{setAll({ano:'2026',cargo:'DEPUTADO ESTADUAL',tipo:'1',origem:'3',parcela:'01',parcelas:'01',ug:UG_SP,servico:exemplo.servico})});
+$('f').addEventListener('submit',e=>e.preventDefault());
+
+
+setAll({ano:'2026',cargo:'DEPUTADO ESTADUAL',tipo:'1',origem:'3',parcela:'01',parcelas:'01',ug:UG_SP,servico:exemplo.servico});renderHist();
+})();
+</script>
+
+</body></html>
